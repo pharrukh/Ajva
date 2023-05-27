@@ -3,6 +3,7 @@ package com.normuradov.ajva
 import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -62,7 +63,7 @@ typealias RecognitionListener = (luma: String) -> Unit
 
 class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
-
+    private var recognizedText = ""
     private var imageCapture: ImageCapture? = null
 
     private var videoCapture: VideoCapture<Recorder>? = null
@@ -106,7 +107,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Set up the listeners for take photo and video capture buttons
-        viewBinding.imageCaptureButton.setOnClickListener { takePhoto() }
+        viewBinding.imageCaptureButton.setOnClickListener {
+            Log.v("DEBUG", "Clicked")
+            val intent = Intent(this@MainActivity, WordSearchActivity::class.java)
+            intent.putExtra("RECOGNIZED_TEXT", recognizedText)
+            startActivity(intent)
+        }
         viewBinding.videoCaptureButton.setOnClickListener { captureVideo() }
 
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -179,6 +185,7 @@ class MainActivity : AppCompatActivity() {
                 .build()
                 .also {
                     it.setAnalyzer(cameraExecutor, OpticalCharacterRecognitionAnalyzer { text ->
+                        recognizedText = text
                         Log.d(TAG, "Recognized Text: $text")
                     })
                 }
