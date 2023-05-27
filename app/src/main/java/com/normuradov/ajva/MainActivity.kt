@@ -1,46 +1,321 @@
 package com.normuradov.ajva
 
+import android.content.ContentResolver
+import android.content.ContentValues
+import android.content.Context
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageFormat
+import android.graphics.Rect
+import android.graphics.YuvImage
+import android.media.Image
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.AnyRes
+import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.video.Recorder
+import androidx.camera.video.Recording
+import androidx.camera.video.VideoCapture
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.normuradov.ajva.databinding.ActivityMainBinding
 import com.normuradov.ajva.ui.theme.AjvaTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.nio.ByteBuffer
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
-class MainActivity : ComponentActivity() {
+
+typealias RecognitionListener = (luma: String) -> Unit
+
+class MainActivity : AppCompatActivity() {
+    private lateinit var viewBinding: ActivityMainBinding
+
+    private var imageCapture: ImageCapture? = null
+
+    private var videoCapture: VideoCapture<Recorder>? = null
+    private var recording: Recording? = null
+
+    private val activityResultLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()
+        )
+        { permissions ->
+            // Handle Permission granted/rejected
+            var permissionGranted = true
+            permissions.entries.forEach {
+                if (it.key in REQUIRED_PERMISSIONS && it.value == false)
+                    permissionGranted = false
+            }
+            if (!permissionGranted) {
+                Toast.makeText(
+                    baseContext,
+                    "Permission request denied",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                startCamera()
+            }
+        }
+
+
+    private lateinit var cameraExecutor: ExecutorService
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            AjvaTheme {
-                // A surface container using the 'background' color from the theme
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    Greeting("Android")
+        viewBinding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(viewBinding.root)
+
+        // Request camera permissions
+        if (allPermissionsGranted()) {
+            startCamera()
+        } else {
+            requestPermissions()
+        }
+
+        // Set up the listeners for take photo and video capture buttons
+        viewBinding.imageCaptureButton.setOnClickListener { takePhoto() }
+        viewBinding.videoCaptureButton.setOnClickListener { captureVideo() }
+
+        cameraExecutor = Executors.newSingleThreadExecutor()
+    }
+
+    private fun takePhoto() {
+        // Get a stable reference of the modifiable image capture use case
+        val imageCapture = imageCapture ?: return
+
+        // Create time stamped name and MediaStore entry.
+        val name = SimpleDateFormat(FILENAME_FORMAT, Locale.US)
+            .format(System.currentTimeMillis())
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CameraX-Image")
+            }
+        }
+
+        // Create output options object which contains file + metadata
+        val outputOptions = ImageCapture.OutputFileOptions
+            .Builder(
+                contentResolver,
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                contentValues
+            )
+            .build()
+
+        // Set up image capture listener, which is triggered after photo has
+        // been taken
+        imageCapture.takePicture(
+            outputOptions,
+            ContextCompat.getMainExecutor(this),
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onError(exc: ImageCaptureException) {
+                    Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
+                }
+
+                override fun
+                        onImageSaved(output: ImageCapture.OutputFileResults) {
+                    val msg = "Photo capture succeeded: ${output.savedUri}"
+                    Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
+                    Log.d(TAG, msg)
                 }
             }
+        )
+    }
+
+    private fun captureVideo() {}
+
+    private fun startCamera() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+
+        cameraProviderFuture.addListener({
+            // Used to bind the lifecycle of cameras to the lifecycle owner
+            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
+
+            // Preview
+            val preview = Preview.Builder()
+                .build()
+                .also {
+                    it.setSurfaceProvider(viewBinding.viewFinder.surfaceProvider)
+                }
+
+            imageCapture = ImageCapture.Builder()
+                .build()
+
+            val imageAnalyzer = ImageAnalysis.Builder()
+                .build()
+                .also {
+                    it.setAnalyzer(cameraExecutor, OpticalCharacterRecognitionAnalyzer { text ->
+                        Log.d(TAG, "Recognized Text: $text")
+                    })
+                }
+
+
+            // Select back camera as a default
+            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+            try {
+                // Unbind use cases before rebinding
+                cameraProvider.unbindAll()
+
+                // Bind use cases to camera
+                cameraProvider.bindToLifecycle(
+                    this, cameraSelector, preview, imageAnalyzer
+                )
+
+            } catch (exc: Exception) {
+                Log.e(TAG, "Use case binding failed", exc)
+            }
+
+        }, ContextCompat.getMainExecutor(this))
+    }
+
+
+    private fun requestPermissions() {
+        activityResultLauncher.launch(REQUIRED_PERMISSIONS)
+    }
+
+    private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
+        ContextCompat.checkSelfPermission(
+            baseContext, it
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        cameraExecutor.shutdown()
+    }
+
+    companion object {
+        private const val TAG = "CameraXApp"
+        private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
+        private val REQUIRED_PERMISSIONS =
+            mutableListOf(
+                android.Manifest.permission.CAMERA,
+                android.Manifest.permission.RECORD_AUDIO
+            ).apply {
+                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                    add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                }
+            }.toTypedArray()
+    }
+}
+
+
+private class OpticalCharacterRecognitionAnalyzer(private val listener: RecognitionListener) :
+    ImageAnalysis.Analyzer {
+
+    private fun ByteBuffer.toByteArray(): ByteArray {
+        rewind()    // Rewind the buffer to zero
+        val data = ByteArray(remaining())
+        get(data)   // Copy the buffer into a byte array
+        return data // Return the byte array
+    }
+
+    @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
+    override fun analyze(image: ImageProxy) {
+
+        val buffer = image.planes[0].buffer
+        val data = buffer.toByteArray()
+        val pixels = data.map { it.toInt() and 0xFF }
+
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        val inputImage =
+            InputImage.fromMediaImage(image.image!!, image.imageInfo.rotationDegrees)
+
+        try {
+            recognizer.process(inputImage)
+                .addOnSuccessListener { visionText ->
+                    listener(visionText.text)
+                    Log.v("SUCCESS", visionText.text)
+                    image.close()
+                }
+                .addOnFailureListener { e ->
+                    Log.v("ERROR", e.message.toString())
+                    image.close()
+                }
+
+        } catch (e: IOException) {
+            e.printStackTrace()
+            image.close()
         }
     }
 }
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
+fun Image.toBitmap(): Bitmap {
+    val yBuffer = planes[0].buffer // Y
+    val vuBuffer = planes[2].buffer // VU
+
+    val ySize = yBuffer.remaining()
+    val vuSize = vuBuffer.remaining()
+
+    val nv21 = ByteArray(ySize + vuSize)
+
+    yBuffer.get(nv21, 0, ySize)
+    vuBuffer.get(nv21, ySize, vuSize)
+
+    val yuvImage = YuvImage(nv21, ImageFormat.NV21, this.width, this.height, null)
+    val out = ByteArrayOutputStream()
+    yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 50, out)
+    val imageBytes = out.toByteArray()
+    return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
 }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    AjvaTheme {
-        Greeting("Android")
-    }
-}
+
+//
+//// When using Latin script library
+//val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+//val context = this.applicationContext
+//
+//val image: InputImage
+//try {
+//    val bitmap = BitmapFactory.decodeResource(
+//        context.getResources(),
+//        R.drawable.example_uz_text
+//    );
+//    image = InputImage.fromBitmap(bitmap, 0)
+//
+//    recognizer.process(image)
+//        .addOnSuccessListener { visionText ->
+//            Log.v("SUCCESS", visionText.text)
+//        }
+//        .addOnFailureListener { e ->
+//            Log.v("ERROR", e.message.toString())
+//        }
+//
+//} catch (e: IOException) {
+//    e.printStackTrace()
+//}
