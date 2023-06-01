@@ -69,12 +69,8 @@ typealias RecognitionListener = (luma: String) -> Unit
 
 class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
-    private var recognizedText = ""
     private var imageCapture: ImageCapture? = null
     private var lastFrame: Bitmap? = null
-
-    private var videoCapture: VideoCapture<Recorder>? = null
-    private var recording: Recording? = null
 
     private val activityResultLauncher =
         registerForActivityResult(
@@ -114,7 +110,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Set up the listeners for take photo and video capture buttons
-        viewBinding.imageCaptureButton.setOnClickListener {
+        viewBinding.searchButton.setOnClickListener {
 //            val buffer = image.planes[0].buffer
 //            val data = buffer.toByteArray()
 //            val pixels = data.map { it.toInt() and 0xFF }
@@ -142,8 +138,6 @@ class MainActivity : AppCompatActivity() {
 
 
         }
-        viewBinding.videoCaptureButton.setOnClickListener { captureVideo() }
-
         cameraExecutor = Executors.newSingleThreadExecutor()
     }
 

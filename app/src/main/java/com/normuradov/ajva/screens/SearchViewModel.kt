@@ -50,12 +50,14 @@ class SearchViewModel(
             var transliteratedText = text
             val latinCyrillic = LatinCyrillicFactory.create(Alphabet.RussianIso9)
             val isCyrillic = latinCyrillic.isCyrillic(text)
-            Log.d(TAG, "isCyrillic: $isCyrillic")
+            Log.v(TAG, "isCyrillic: $isCyrillic")
             if (!isCyrillic) {
                 val cyrillic = latinCyrillic.latinToCyrillic(text)
                 transliteratedText = cyrillic
             }
+            Log.v(TAG, "transliteratedText: $transliteratedText")
             val words = split(transliteratedText)
+            Log.v(TAG, "words: $words")
             searchForWordsByOCR(words)
         }
     }
