@@ -1,8 +1,15 @@
 package com.normuradov.ajva.data
 
-data class Word(
-    val id: Int,
-    val meaning: String,
-    val word: String
-)
+import androidx.annotation.NonNull
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import org.jetbrains.annotations.NotNull
 
+@Entity(tableName = "dictionary")
+data class Word(
+    @PrimaryKey()
+    val id: Int? = 0,
+    val meaning: String? = "",
+    val word: String? = "",
+)

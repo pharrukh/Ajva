@@ -1,5 +1,6 @@
 package com.normuradov.ajva
 
+import android.Manifest
 import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
@@ -8,6 +9,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
+import android.graphics.Matrix
 import android.graphics.Rect
 import android.graphics.YuvImage
 import android.media.Image
@@ -21,8 +23,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.AnyRes
+import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -44,6 +48,8 @@ import androidx.lifecycle.lifecycleScope
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.michaeltroger.latintocyrillic.Alphabet
+import com.michaeltroger.latintocyrillic.LatinCyrillicFactory
 import com.normuradov.ajva.databinding.ActivityMainBinding
 import com.normuradov.ajva.ui.theme.AjvaTheme
 import kotlinx.coroutines.CoroutineScope
@@ -65,6 +71,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
     private var recognizedText = ""
     private var imageCapture: ImageCapture? = null
+    private var lastFrame: Bitmap? = null
 
     private var videoCapture: VideoCapture<Recorder>? = null
     private var recording: Recording? = null
@@ -108,10 +115,32 @@ class MainActivity : AppCompatActivity() {
 
         // Set up the listeners for take photo and video capture buttons
         viewBinding.imageCaptureButton.setOnClickListener {
+//            val buffer = image.planes[0].buffer
+//            val data = buffer.toByteArray()
+//            val pixels = data.map { it.toInt() and 0xFF }
+
             Log.v("DEBUG", "Clicked")
-            val intent = Intent(this@MainActivity, WordSearchActivity::class.java)
-            intent.putExtra("RECOGNIZED_TEXT", recognizedText)
-            startActivity(intent)
+
+            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+            val inputImage = InputImage.fromBitmap(lastFrame!!, 0)
+
+            try {
+                recognizer.process(inputImage)
+                    .addOnSuccessListener { visionText ->
+                        Log.v("SUCCESS", visionText.text)
+                        val intent = Intent(this@MainActivity, WordSearchActivity::class.java)
+                        intent.putExtra("RECOGNIZED_TEXT", visionText.text)
+                        startActivity(intent)
+                    }
+                    .addOnFailureListener { e ->
+                        Log.v("ERROR", e.message.toString())
+                    }
+
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+
+
         }
         viewBinding.videoCaptureButton.setOnClickListener { captureVideo() }
 
@@ -184,10 +213,30 @@ class MainActivity : AppCompatActivity() {
             val imageAnalyzer = ImageAnalysis.Builder()
                 .build()
                 .also {
-                    it.setAnalyzer(cameraExecutor, OpticalCharacterRecognitionAnalyzer { text ->
-                        recognizedText = text
-                        Log.d(TAG, "Recognized Text: $text")
+                    it.setAnalyzer(cameraExecutor, ImageAnalysis.Analyzer { imageProxy ->
+                        val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+                        // Convert ImageProxy to Bitmap
+                        lastFrame = imageProxy.toBitmap(rotationDegrees)
+                        imageProxy.close()
                     })
+
+                    //                        val latinCyrillic = LatinCyrillicFactory.create(Alphabet.RussianIso9)
+//                        lifecycleScope.launch {
+//                            val isCyrillic = latinCyrillic.isCyrillic(text)
+//                            Log.d(TAG, "isCyrillic: $isCyrillic")
+//                            if (!isCyrillic) {
+//                                val cyrillic = latinCyrillic.latinToCyrillic(text)
+//                                withContext(Dispatchers.Main){
+//                                    recognizedText = cyrillic
+//                                    Log.d(TAG, "Recognized Text: $recognizedText")
+//                                }
+//                            } else {
+//                                withContext(Dispatchers.Main){
+//                                    recognizedText = text
+//                                    Log.d(TAG, "Recognized Text: $recognizedText")
+//                                }
+//                            }
+//                        }
                 }
 
 
@@ -231,11 +280,11 @@ class MainActivity : AppCompatActivity() {
         private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
         private val REQUIRED_PERMISSIONS =
             mutableListOf(
-                android.Manifest.permission.CAMERA,
-                android.Manifest.permission.RECORD_AUDIO
+                Manifest.permission.CAMERA,
+                Manifest.permission.RECORD_AUDIO
             ).apply {
                 if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-                    add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 }
             }.toTypedArray()
     }
@@ -252,7 +301,7 @@ private class OpticalCharacterRecognitionAnalyzer(private val listener: Recognit
         return data // Return the byte array
     }
 
-    @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
+    @OptIn(ExperimentalGetImage::class)
     override fun analyze(image: ImageProxy) {
 
         val buffer = image.planes[0].buffer
@@ -280,6 +329,36 @@ private class OpticalCharacterRecognitionAnalyzer(private val listener: Recognit
             image.close()
         }
     }
+
+
+}
+
+@androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
+private fun ImageProxy.toBitmap(rotationDegrees: Int): Bitmap {
+    val image = this.image ?: return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+    val yBuffer = image.planes[0].buffer
+    val uBuffer = image.planes[1].buffer
+    val vBuffer = image.planes[2].buffer
+
+    val ySize = yBuffer.remaining()
+    val uSize = uBuffer.remaining()
+    val vSize = vBuffer.remaining()
+
+    val nv21 = ByteArray(ySize + uSize + vSize)
+
+    //U and V are swapped
+    yBuffer.get(nv21, 0, ySize)
+    vBuffer.get(nv21, ySize, vSize)
+    uBuffer.get(nv21, ySize + vSize, uSize)
+
+    val yuvImage = YuvImage(nv21, ImageFormat.NV21, this.width, this.height, null)
+    val out = ByteArrayOutputStream()
+    yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 100, out)
+    val yuvInRgb = BitmapFactory.decodeByteArray(out.toByteArray(), 0, out.size())
+
+    val matrix = Matrix()
+    matrix.postRotate(rotationDegrees.toFloat())
+    return Bitmap.createBitmap(yuvInRgb, 0, 0, yuvInRgb.width, yuvInRgb.height, matrix, true)
 }
 
 fun Image.toBitmap(): Bitmap {
