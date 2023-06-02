@@ -167,24 +167,6 @@ class MainActivity : AppCompatActivity() {
                         lastFrame = imageProxy.toBitmap(rotationDegrees)
                         imageProxy.close()
                     })
-
-                    //                        val latinCyrillic = LatinCyrillicFactory.create(Alphabet.RussianIso9)
-//                        lifecycleScope.launch {
-//                            val isCyrillic = latinCyrillic.isCyrillic(text)
-//                            Log.d(TAG, "isCyrillic: $isCyrillic")
-//                            if (!isCyrillic) {
-//                                val cyrillic = latinCyrillic.latinToCyrillic(text)
-//                                withContext(Dispatchers.Main){
-//                                    recognizedText = cyrillic
-//                                    Log.d(TAG, "Recognized Text: $recognizedText")
-//                                }
-//                            } else {
-//                                withContext(Dispatchers.Main){
-//                                    recognizedText = text
-//                                    Log.d(TAG, "Recognized Text: $recognizedText")
-//                                }
-//                            }
-//                        }
                 }
 
 
@@ -328,28 +310,3 @@ fun Image.toBitmap(): Bitmap {
     return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
 }
 
-
-//
-//// When using Latin script library
-//val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-//val context = this.applicationContext
-//
-//val image: InputImage
-//try {
-//    val bitmap = BitmapFactory.decodeResource(
-//        context.getResources(),
-//        R.drawable.example_uz_text
-//    );
-//    image = InputImage.fromBitmap(bitmap, 0)
-//
-//    recognizer.process(image)
-//        .addOnSuccessListener { visionText ->
-//            Log.v("SUCCESS", visionText.text)
-//        }
-//        .addOnFailureListener { e ->
-//            Log.v("ERROR", e.message.toString())
-//        }
-//
-//} catch (e: IOException) {
-//    e.printStackTrace()
-//}
