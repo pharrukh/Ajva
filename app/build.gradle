@@ -21,6 +21,8 @@ android {
         }
     }
 
+
+
     buildTypes {
         release {
             minifyEnabled false
@@ -92,4 +94,7 @@ dependencies {
 
     // Transliterating Library
     implementation 'com.michaeltroger:latin-to-cyrillic:1.0.0'
+
+    // SQLite
+    implementation 'com.github.requery:sqlite-android:3.42.0'
 }

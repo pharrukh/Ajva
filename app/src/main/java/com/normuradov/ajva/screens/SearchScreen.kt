@@ -73,7 +73,7 @@ fun SearchScreen(
         LazyColumn {
             items(
                 items = state.value.foundWords,
-                key = { it.id!! }) {
+                key = { it.word!! }) {
                 WordCard(word = it, viewModel = viewModel)
             }
         }

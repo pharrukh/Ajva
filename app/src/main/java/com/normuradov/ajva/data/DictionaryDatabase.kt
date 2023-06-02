@@ -20,7 +20,7 @@ abstract class DictionaryDatabase : RoomDatabase() {
                     DictionaryDatabase::class.java,
                     "dictionary_database"
                 )
-                    .createFromAsset("database/UZ_Lugati.db")
+                    .createFromAsset("database/words.db")
                     .fallbackToDestructiveMigration()
                     .build().also { Instance = it }
             }
