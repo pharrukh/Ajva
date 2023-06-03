@@ -1,27 +1,26 @@
 package com.normuradov.ajva
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.viewModelScope
-import com.michaeltroger.latintocyrillic.Alphabet
-import com.michaeltroger.latintocyrillic.LatinCyrillicFactory
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.normuradov.ajva.screens.SearchScreen
 import com.normuradov.ajva.screens.WordDetailScreen
-import com.normuradov.ajva.ui.theme.SearchScreenUiState
+import com.normuradov.ajva.ui.theme.AjvaTheme
 import com.normuradov.ajva.ui.theme.SearchViewMode
 import com.normuradov.ajva.ui.theme.SearchViewModel
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 private const val TAG = "WORD_SEARCH_ACTIVITY"
@@ -34,17 +33,20 @@ class WordSearchActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            var text = intent.getStringExtra("RECOGNIZED_TEXT")!!
-            Log.d(TAG, "RECOGNIZED_TEXT $text")
+//            var text = intent.getStringExtra("RECOGNIZED_TEXT")!!
+//            Log.d(TAG, "RECOGNIZED_TEXT $text")
+            val text = "а"
             viewModel.process(text)
 
             Surface(
                 modifier = Modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.background
             ) {
-                DictionaryApp(
-                    viewModel = viewModel
-                )
+                AjvaTheme {
+                    DictionaryApp(
+                        viewModel = viewModel
+                    )
+                }
             }
 
         }
@@ -55,13 +57,28 @@ class WordSearchActivity : ComponentActivity() {
 @Composable
 fun DictionaryApp(
     modifier: Modifier = Modifier,
-    viewModel: SearchViewModel,
+    viewModel: SearchViewModel = viewModel(),
 ) {
-    val uiState = viewModel.uiState.collectAsState()
-    if (uiState.value.mode == SearchViewMode.Search) {
-        SearchScreen(userInput = uiState.value.userSearchText, viewModel = viewModel)
-    } else if (uiState.value.mode == SearchViewMode.Detail) {
-        WordDetailScreen(word = uiState.value.selectedWord!!, viewModel = viewModel)
+    val uiState by viewModel.uiState.collectAsState()
+    when (uiState.mode) {
+        SearchViewMode.Search ->
+            SearchScreen()
+        SearchViewMode.Detail -> {
+            val coroutineScope = rememberCoroutineScope()
+            WordDetailScreen(word = uiState.selectedWord!!, onBackClick = {
+                coroutineScope.launch {
+                    viewModel.navigateToSearchScreen()
+                }
+            })
+        }
+        SearchViewMode.Loading -> {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                CircularProgressIndicator()
+            }
+        }
     }
 }
 

@@ -13,8 +13,10 @@ import com.normuradov.ajva.DictionaryApplication
 
 import com.normuradov.ajva.data.Word
 import com.normuradov.ajva.data.WordRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
@@ -24,11 +26,27 @@ private val TAG = "SEARCH_VIEW_MODEL"
 class SearchViewModel(
     private val wordRepository: WordRepository,
 ) : ViewModel() {
+    private val _rawUserInput = MutableSharedFlow<String>(replay = 0)
     private val _uiState = MutableStateFlow(SearchScreenUiState())
     val uiState: StateFlow<SearchScreenUiState> = _uiState
 
+    init {
+        viewModelScope.launch {
+            _rawUserInput
+                .debounce(500)
+                .collect { debouncedInput ->
+                    _uiState.update { _uiState.value.copy(mode = SearchViewMode.Loading) }
+                    _uiState.value = _uiState.value.copy(userSearchText = debouncedInput)
+                    searchForWordsByUserInput()
+                    _uiState.update { _uiState.value.copy(mode = SearchViewMode.Search) }
+                }
+        }
+    }
+
     fun updateText(userInput: String) {
-        _uiState.update { _uiState.value.copy(userSearchText = userInput) }
+        viewModelScope.launch {
+            _rawUserInput.emit(userInput)
+        }
     }
 
     fun searchForWordsByOCR(recognizedPossibleWords: List<String>) {
@@ -76,8 +94,9 @@ class SearchViewModel(
         }
 
         viewModelScope.launch {
-            Log.v("SEARCH", _uiState.value.userSearchText)
-            val words = wordRepository.search(_uiState.value.userSearchText)
+            val query = _uiState.value.userSearchText
+            Log.v("SEARCH", query)
+            val words = wordRepository.search(query)
             Log.v("SEARCH", "found ${words.size} words")
             _uiState.update { _uiState.value.copy(foundWords = words) }
             Log.v("STATE_UPDATE", "Now there are ${_uiState.value.foundWords.size} words")
@@ -103,7 +122,7 @@ class SearchViewModel(
 }
 
 enum class SearchViewMode {
-    Search, Detail
+    Search, Detail, Loading
 }
 
 data class SearchScreenUiState(

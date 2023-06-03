@@ -23,28 +23,38 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.normuradov.ajva.data.Word
+import com.normuradov.ajva.ui.theme.AjvaTheme
 import com.normuradov.ajva.ui.theme.SearchViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     modifier: Modifier = Modifier,
-    userInput: String = "",
     words: List<Word> = listOf(),
-    viewModel: SearchViewModel,
+    viewModel: SearchViewModel = viewModel(),
 ) {
+
     Log.v("SEARCH SCREEN", "Passed words count: ${words.size}")
-    val state = viewModel.uiState.collectAsState()
-    Log.v("SEARCH SCREEN", "Recomposition: ${state.value.foundWords.size} words")
+    val state by viewModel.uiState.collectAsState()
+    Log.v("SEARCH SCREEN", "Recomposition: ${state.foundWords.size} words")
+
+    // Remember the TextField value
+    var textFieldValue by rememberSaveable { mutableStateOf(state.userSearchText) }
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(8.dp),
+            .padding(8.dp)
+            .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -52,11 +62,11 @@ fun SearchScreen(
             modifier = modifier
                 .padding(4.dp)
                 .width(350.dp),
-            value = userInput,
+            value = textFieldValue,
             onValueChange = {
+                textFieldValue = it
                 viewModel.updateText(it)
-                viewModel.searchForWordsByUserInput()
-                Log.v("DEBUG", viewModel.uiState.value.userSearchText)
+                Log.v("DEBUG", it)
             },
             leadingIcon = {
                 Icon(
@@ -72,40 +82,48 @@ fun SearchScreen(
 
         LazyColumn {
             items(
-                items = state.value.foundWords,
-                key = { it.id!! }) {
-                WordCard(word = it, viewModel = viewModel)
+                items = state.foundWords,
+                key = { it.id }) {
+                WordCard(word = it, onClick = { viewModel.navigateToWord(it) })
             }
         }
     }
 }
 
 @Composable
-fun WordCard(modifier: Modifier = Modifier, word: Word,viewModel: SearchViewModel) {
+fun WordCard(
+    modifier: Modifier = Modifier,
+    word: Word,
+    onClick: (word: Word) -> Unit = {},
+) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(30.dp).clickable(onClick = {viewModel.navigateToWord(word)}) ,
+            .height(50.dp)
+            .clickable(onClick = { onClick(word) })
+            .padding(4.dp),
     ) {
-        Row(modifier = modifier.fillMaxSize()) {
+        Row(
+            modifier = modifier
+                .fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 modifier = modifier
                     .fillMaxSize()
-                    .padding(top = 4.dp),
+                    .padding(bottom = 2.dp, start = 8.dp),
                 text = word.word!!,
                 style = MaterialTheme.typography.titleMedium,
-                textAlign = TextAlign.Center,
-
-                )
+            )
         }
     }
-
 }
 
+@Preview
+@Composable
+fun PreviewSearchScreen(){
+    AjvaTheme {
+        SearchScreen()
+    }
+}
 
-//@Preview
-//@Composable
-//fun SearchScreenPreview() {
-//    SearchScreen()
-//}
-//

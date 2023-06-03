@@ -17,9 +17,8 @@ interface WordDao {
             CASE
                 WHEN word GLOB '[а-яА-Я]*' THEN 0
                 ELSE 1
-            END,
-            word
-        LIMIT 50""")
+            END
+        LIMIT 200""")
     suspend fun search(query: String): List<Word>
 
     @Query("""
