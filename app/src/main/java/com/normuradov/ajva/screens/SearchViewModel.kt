@@ -47,6 +47,10 @@ class SearchViewModel(
         }
     }
 
+    fun showLoader() {
+        _uiState.update { _uiState.value.copy(isLoading = true) }
+    }
+
     fun searchForWordsByOCR(recognizedPossibleWords: List<String>) {
         val topFive = recognizedPossibleWords
         viewModelScope.launch {
@@ -55,33 +59,33 @@ class SearchViewModel(
                 val words = wordRepository.search(recognizedWord)
                 result.addAll(words)
             }
-            _uiState.update { _uiState.value.copy(foundWords = result.toList()) }
+            _uiState.update { _uiState.value.copy(foundWords = result.toList(), isLoading = false) }
         }
     }
 
 
     fun process(text: String) {
         // Remove double quotation marks
-        val sanitizedText = text.replace("\"", "")
+        val sanitizedText = text.replace(Regex("[^а-яА-Я]"), "")
         viewModelScope.launch {
             var transliteratedText = sanitizedText
             val latinCyrillic = LatinCyrillicFactory.create(Alphabet.RussianIso9)
             val isCyrillic = latinCyrillic.isCyrillic(sanitizedText)
-            Log.v(TAG, "isCyrillic: $isCyrillic")
+            Log.d(TAG, "isCyrillic: $isCyrillic")
             if (!isCyrillic) {
                 val cyrillic = latinCyrillic.latinToCyrillic(sanitizedText)
                 transliteratedText = cyrillic
             }
-            Log.v(TAG, "transliteratedText: $transliteratedText")
+            Log.d(TAG, "transliteratedText: $transliteratedText")
             val words = split(transliteratedText)
-            Log.v(TAG, "words: $words")
+            Log.d(TAG, "words: $words")
             searchForWordsByOCR(words)
         }
     }
 
     private fun split(text: String): List<String> {
         val words = text.replace("\n", " ").split(" ").filter { it -> it.length > 4 }
-        Log.v(TAG, words.joinToString { "$it, " })
+        Log.d(TAG, words.joinToString { "$it, " })
         return words
     }
 
@@ -93,11 +97,13 @@ class SearchViewModel(
 
         viewModelScope.launch {
             val query = _uiState.value.userSearchText
-            Log.v("SEARCH", query)
-            val words = wordRepository.search(query)
-            Log.v("SEARCH", "found ${words.size} words")
+            Log.d("SEARCH", query)
+            // Sanitize query by keeing only Cyrrilic letters
+            val sanitizedQuery = query.replace(Regex("[^а-яА-Я]"), "")
+            val words = wordRepository.search(sanitizedQuery)
+            Log.d("SEARCH", "found ${words.size} words")
             _uiState.update { _uiState.value.copy(foundWords = words) }
-            Log.v("STATE_UPDATE", "Now there are ${_uiState.value.foundWords.size} words")
+            Log.d("STATE_UPDATE", "Now there are ${_uiState.value.foundWords.size} words")
         }
     }
 

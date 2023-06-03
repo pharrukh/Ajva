@@ -1,9 +1,6 @@
 package com.normuradov.ajva
 
 import android.Manifest
-import android.content.ContentResolver
-import android.content.ContentValues
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -13,54 +10,29 @@ import android.graphics.Matrix
 import android.graphics.Rect
 import android.graphics.YuvImage
 import android.media.Image
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.MediaStore
 import android.util.Log
+import android.view.View
 import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.AnyRes
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.video.Recorder
-import androidx.camera.video.Recording
-import androidx.camera.video.VideoCapture
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import com.michaeltroger.latintocyrillic.Alphabet
-import com.michaeltroger.latintocyrillic.LatinCyrillicFactory
 import com.normuradov.ajva.databinding.ActivityMainBinding
-import com.normuradov.ajva.ui.theme.AjvaTheme
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.text.SimpleDateFormat
-import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -70,7 +42,7 @@ typealias RecognitionListener = (luma: String) -> Unit
 class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
     private var imageCapture: ImageCapture? = null
-    private var lastFrame: Bitmap? = null
+    private var analyzeNextImage = false
 
     private val activityResultLauncher =
         registerForActivityResult(
@@ -111,31 +83,14 @@ class MainActivity : AppCompatActivity() {
 
         // Set up the listeners for take photo and video capture buttons
         viewBinding.searchButton.setOnClickListener {
+            viewBinding.progressBar.visibility = View.VISIBLE
+            viewBinding.viewFinder.visibility = View.INVISIBLE  // Hide the preview
+            analyzeNextImage = true
 //            val buffer = image.planes[0].buffer
 //            val data = buffer.toByteArray()
 //            val pixels = data.map { it.toInt() and 0xFF }
 
-            Log.v("DEBUG", "Clicked")
-
-            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-            val inputImage = InputImage.fromBitmap(lastFrame!!, 0)
-
-            try {
-                recognizer.process(inputImage)
-                    .addOnSuccessListener { visionText ->
-                        Log.v("SUCCESS", visionText.text)
-                        val intent = Intent(this@MainActivity, WordSearchActivity::class.java)
-                        intent.putExtra("RECOGNIZED_TEXT", visionText.text)
-                        startActivity(intent)
-                    }
-                    .addOnFailureListener { e ->
-                        Log.v("ERROR", e.message.toString())
-                    }
-
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
-
+            Log.d("DEBUG", "Clicked")
 
         }
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -162,10 +117,45 @@ class MainActivity : AppCompatActivity() {
                 .build()
                 .also {
                     it.setAnalyzer(cameraExecutor, ImageAnalysis.Analyzer { imageProxy ->
-                        val rotationDegrees = imageProxy.imageInfo.rotationDegrees
-                        // Convert ImageProxy to Bitmap
-                        lastFrame = imageProxy.toBitmap(rotationDegrees)
-                        imageProxy.close()
+                        if (analyzeNextImage) {
+                            analyzeNextImage = false  // Reset the flag
+                            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+                            val bitmap = imageProxy.toBitmap(rotationDegrees)
+                            imageProxy.close()  // Don't forget to close the image!
+
+                            val recognizer =
+                                TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                            val inputImage = InputImage.fromBitmap(bitmap, rotationDegrees)
+
+                            try {
+                                recognizer.process(inputImage)
+                                    .addOnSuccessListener { visionText ->
+                                        Log.d("SUCCESS", visionText.text)
+                                        val intent = Intent(
+                                            this@MainActivity,
+                                            WordSearchActivity::class.java
+                                        )
+                                        intent.putExtra("RECOGNIZED_TEXT", visionText.text)
+
+                                        runOnUiThread {
+                                            viewBinding.progressBar.visibility = View.GONE
+                                        }
+
+                                        startActivity(intent)
+                                    }
+                                    .addOnFailureListener { e ->
+                                        Log.d("ERROR", e.message.toString())
+                                    }
+
+                            } catch (e: IOException) {
+                                e.printStackTrace()
+                            }
+
+                        } else {
+                            // Skip this image without analyzing it
+                            imageProxy.close()
+                        }
+
                     })
                 }
 
@@ -246,11 +236,11 @@ private class OpticalCharacterRecognitionAnalyzer(private val listener: Recognit
             recognizer.process(inputImage)
                 .addOnSuccessListener { visionText ->
                     listener(visionText.text)
-                    Log.v("SUCCESS", visionText.text)
+                    Log.d("SUCCESS", visionText.text)
                     image.close()
                 }
                 .addOnFailureListener { e ->
-                    Log.v("ERROR", e.message.toString())
+                    Log.d("ERROR", e.message.toString())
                     image.close()
                 }
 

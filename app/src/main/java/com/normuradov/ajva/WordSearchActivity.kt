@@ -1,6 +1,7 @@
 package com.normuradov.ajva
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -33,9 +34,9 @@ class WordSearchActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-//            var text = intent.getStringExtra("RECOGNIZED_TEXT")!!
-//            Log.d(TAG, "RECOGNIZED_TEXT $text")
-            val text = "а"
+            var text = intent.getStringExtra("RECOGNIZED_TEXT")!!
+            Log.d(TAG, "RECOGNIZED_TEXT $text")
+            viewModel.showLoader()
             viewModel.process(text)
 
             Surface(

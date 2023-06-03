@@ -49,9 +49,9 @@ fun SearchScreen(
     viewModel: SearchViewModel = viewModel(),
 ) {
 
-    Log.v("SEARCH SCREEN", "Passed words count: ${words.size}")
+    Log.d("SEARCH SCREEN", "Passed words count: ${words.size}")
     val state by viewModel.uiState.collectAsState()
-    Log.v("SEARCH SCREEN", "Recomposition: ${state.foundWords.size} words")
+    Log.d("SEARCH SCREEN", "Recomposition: ${state.foundWords.size} words")
 
     // Remember the TextField value
     var textFieldValue by rememberSaveable { mutableStateOf(state.userSearchText) }
@@ -71,7 +71,7 @@ fun SearchScreen(
             onValueChange = {
                 textFieldValue = it
                 viewModel.updateText(it)
-                Log.v("DEBUG", it)
+                Log.d("DEBUG", it)
             },
             leadingIcon = {
                 Icon(
