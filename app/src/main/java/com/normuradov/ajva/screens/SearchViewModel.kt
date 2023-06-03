@@ -10,7 +10,6 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.michaeltroger.latintocyrillic.Alphabet
 import com.michaeltroger.latintocyrillic.LatinCyrillicFactory
 import com.normuradov.ajva.DictionaryApplication
-
 import com.normuradov.ajva.data.Word
 import com.normuradov.ajva.data.WordRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -18,7 +17,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 
 private val TAG = "SEARCH_VIEW_MODEL"
@@ -35,15 +33,15 @@ class SearchViewModel(
             _rawUserInput
                 .debounce(500)
                 .collect { debouncedInput ->
-                    _uiState.update { _uiState.value.copy(mode = SearchViewMode.Loading) }
-                    _uiState.value = _uiState.value.copy(userSearchText = debouncedInput)
+                    _uiState.update { _uiState.value.copy(userSearchText = debouncedInput) }
                     searchForWordsByUserInput()
-                    _uiState.update { _uiState.value.copy(mode = SearchViewMode.Search) }
+                    _uiState.update { _uiState.value.copy(isLoading = false) }
                 }
         }
     }
 
     fun updateText(userInput: String) {
+        _uiState.update { _uiState.value.copy(isLoading = true) }
         viewModelScope.launch {
             _rawUserInput.emit(userInput)
         }
@@ -122,11 +120,12 @@ class SearchViewModel(
 }
 
 enum class SearchViewMode {
-    Search, Detail, Loading
+    Search, Detail
 }
 
 data class SearchScreenUiState(
     val mode: SearchViewMode = SearchViewMode.Search,
+    val isLoading: Boolean = false,
     val selectedWord: Word? = null,
     val foundWords: List<Word> = listOf(),
     val userSearchText: String = "",
