@@ -36,7 +36,7 @@ class WordSearchActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             var text = intent.getStringExtra("RECOGNIZED_TEXT")!!
-            Log.d(TAG, "RECOGNIZED_TEXT $text")
+            Log.v(TAG, "RECOGNIZED_TEXT $text")
 
             // Display the result in a Toast
             Toast.makeText(this, text, Toast.LENGTH_LONG).show()

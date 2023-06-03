@@ -90,7 +90,7 @@ class MainActivity : AppCompatActivity() {
 //            val data = buffer.toByteArray()
 //            val pixels = data.map { it.toInt() and 0xFF }
 
-            Log.d("DEBUG", "Clicked")
+            Log.v("DEBUG", "Clicked")
 
         }
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -123,14 +123,19 @@ class MainActivity : AppCompatActivity() {
                             val bitmap = imageProxy.toBitmap(rotationDegrees)
                             imageProxy.close()  // Don't forget to close the image!
 
+                            val scaleFactor = 0.5f
+                            val newWidth = (bitmap.width * scaleFactor).toInt()
+                            val newHeight = (bitmap.height * scaleFactor).toInt()
+                            val resizedBitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, false)
+
                             val recognizer =
                                 TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                            val inputImage = InputImage.fromBitmap(bitmap, rotationDegrees)
+                            val inputImage = InputImage.fromBitmap(resizedBitmap, rotationDegrees)
 
                             try {
                                 recognizer.process(inputImage)
                                     .addOnSuccessListener { visionText ->
-                                        Log.d("SUCCESS", visionText.text)
+                                        Log.v("SUCCESS", visionText.text)
                                         val intent = Intent(
                                             this@MainActivity,
                                             WordSearchActivity::class.java
@@ -138,13 +143,14 @@ class MainActivity : AppCompatActivity() {
                                         intent.putExtra("RECOGNIZED_TEXT", visionText.text)
 
                                         runOnUiThread {
+                                            viewBinding.viewFinder.visibility = View.VISIBLE
                                             viewBinding.progressBar.visibility = View.GONE
                                         }
 
                                         startActivity(intent)
                                     }
                                     .addOnFailureListener { e ->
-                                        Log.d("ERROR", e.message.toString())
+                                        Log.v("ERROR", e.message.toString())
                                     }
 
                             } catch (e: IOException) {
@@ -236,11 +242,11 @@ private class OpticalCharacterRecognitionAnalyzer(private val listener: Recognit
             recognizer.process(inputImage)
                 .addOnSuccessListener { visionText ->
                     listener(visionText.text)
-                    Log.d("SUCCESS", visionText.text)
+                    Log.v("SUCCESS", visionText.text)
                     image.close()
                 }
                 .addOnFailureListener { e ->
-                    Log.d("ERROR", e.message.toString())
+                    Log.v("ERROR", e.message.toString())
                     image.close()
                 }
 

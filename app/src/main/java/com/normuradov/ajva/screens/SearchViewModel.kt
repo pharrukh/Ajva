@@ -58,7 +58,8 @@ class SearchViewModel(
             val result = mutableSetOf<Word>()
             for (recognizedWord in topFive) {
                 val words = wordRepository.search(recognizedWord)
-                result.addAll(words)
+                if(words.isNotEmpty())
+                    result.add(words[0])
             }
             _uiState.update { _uiState.value.copy(foundWords = result.toList(), isLoading = false) }
         }
@@ -66,27 +67,27 @@ class SearchViewModel(
 
 
     fun process(text: String) {
-        // Remove double quotation marks
-        val sanitizedText = text.replace(Regex("[^а-яА-Я]"), "")
+        // Remove all non alphanumeric characters from Latin and Cyrillic
+        val sanitizedText = text.replace("[^A-Za-zА-Яа-я0-9 ]".toRegex(), "")
         viewModelScope.launch {
             var transliteratedText = sanitizedText
             val latinCyrillic = LatinCyrillicFactory.create(Alphabet.RussianIso9)
             val isCyrillic = latinCyrillic.isCyrillic(sanitizedText)
-            Log.d(TAG, "isCyrillic: $isCyrillic")
+            Log.v(TAG, "isCyrillic: $isCyrillic")
             if (!isCyrillic) {
                 val cyrillic = transliterate(sanitizedText.lowercase())
                 transliteratedText = cyrillic
             }
-            Log.d(TAG, "transliteratedText: $transliteratedText")
+            Log.v(TAG, "transliteratedText: $transliteratedText")
             val words = split(transliteratedText)
-            Log.d(TAG, "words: $words")
+            Log.v(TAG, "words: $words")
             searchForWordsByOCR(words)
         }
     }
 
     private fun split(text: String): List<String> {
         val words = text.replace("\n", " ").split(" ").filter { it -> it.length > 4 }
-        Log.d(TAG, words.joinToString { "$it, " })
+        Log.v(TAG, words.joinToString { "$it, " })
         return words
     }
 
@@ -98,13 +99,13 @@ class SearchViewModel(
 
         viewModelScope.launch {
             val query = _uiState.value.userSearchText
-            Log.d("SEARCH", query)
+            Log.v("SEARCH", query)
             // Sanitize query by keeing only Cyrrilic letters
             val sanitizedQuery = query.replace(Regex("[^а-яА-Я]"), "")
             val words = wordRepository.search(sanitizedQuery)
-            Log.d("SEARCH", "found ${words.size} words")
+            Log.v("SEARCH", "found ${words.size} words")
             _uiState.update { _uiState.value.copy(foundWords = words) }
-            Log.d("STATE_UPDATE", "Now there are ${_uiState.value.foundWords.size} words")
+            Log.v("STATE_UPDATE", "Now there are ${_uiState.value.foundWords.size} words")
         }
     }
 
