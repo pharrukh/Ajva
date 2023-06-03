@@ -76,7 +76,7 @@ fun WordDetailScreen(
 fun WordDetailScreenPreview() {
     AjvaTheme {
         WordDetailScreen(
-            word = WORDS[0],
+            word = WORDS[2],
             onBackClick = {}
         )
     }

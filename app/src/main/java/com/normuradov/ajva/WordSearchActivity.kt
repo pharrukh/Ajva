@@ -4,6 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -60,24 +63,40 @@ fun DictionaryApp(
     viewModel: SearchViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    when (uiState.mode) {
-        SearchViewMode.Search ->
+
+    AnimatedVisibility(
+        visible = uiState.mode == SearchViewMode.Search,
+        enter = fadeIn(),
+        exit = fadeOut(),
+    ) {
+        if (uiState.mode == SearchViewMode.Search) {
             SearchScreen()
-        SearchViewMode.Detail -> {
+        }
+    }
+
+
+    AnimatedVisibility(
+        visible = uiState.mode == SearchViewMode.Detail,
+        enter = fadeIn(),
+        exit = fadeOut(),
+    ) {
+        val selectedWord = uiState.selectedWord
+        if (uiState.mode == SearchViewMode.Detail && selectedWord != null) {
             val coroutineScope = rememberCoroutineScope()
-            WordDetailScreen(word = uiState.selectedWord!!, onBackClick = {
+            WordDetailScreen(word = selectedWord, onBackClick = {
                 coroutineScope.launch {
                     viewModel.navigateToSearchScreen()
                 }
             })
         }
-        SearchViewMode.Loading -> {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                CircularProgressIndicator()
-            }
+    }
+
+    if (uiState.mode == SearchViewMode.Loading) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            CircularProgressIndicator()
         }
     }
 }
