@@ -15,4 +15,6 @@
 local.properties
 
 /app/src/main/assets/database/words.db
-
+/app/debug
+/app/release
+/.idea/deploymentTargetDropDown.xml

@@ -29,11 +29,10 @@ class SearchViewModel(
 
     fun updateText(userInput: String) {
         _uiState.update { _uiState.value.copy(userSearchText = userInput) }
-
     }
 
     fun searchForWordsByOCR(recognizedPossibleWords: List<String>) {
-        val topFive = recognizedPossibleWords.take(5)
+        val topFive = recognizedPossibleWords
         viewModelScope.launch {
             val result = mutableSetOf<Word>()
             for (recognizedWord in topFive) {
@@ -46,13 +45,15 @@ class SearchViewModel(
 
 
     fun process(text: String) {
+        // Remove double quotation marks
+        val sanitizedText = text.replace("\"", "")
         viewModelScope.launch {
-            var transliteratedText = text
+            var transliteratedText = sanitizedText
             val latinCyrillic = LatinCyrillicFactory.create(Alphabet.RussianIso9)
-            val isCyrillic = latinCyrillic.isCyrillic(text)
+            val isCyrillic = latinCyrillic.isCyrillic(sanitizedText)
             Log.v(TAG, "isCyrillic: $isCyrillic")
             if (!isCyrillic) {
-                val cyrillic = latinCyrillic.latinToCyrillic(text)
+                val cyrillic = latinCyrillic.latinToCyrillic(sanitizedText)
                 transliteratedText = cyrillic
             }
             Log.v(TAG, "transliteratedText: $transliteratedText")

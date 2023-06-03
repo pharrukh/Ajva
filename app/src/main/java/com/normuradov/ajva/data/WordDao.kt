@@ -5,11 +5,11 @@ import androidx.room.Query
 
 @Dao
 interface WordDao {
-    @Query("SELECT word, meaning FROM words_fts WHERE word = :word LIMIT 1")
+    @Query("SELECT rowid, word, meaning FROM words_fts WHERE word = :word LIMIT 1")
     suspend fun get(word: String): Word
 
     @Query("""
-        SELECT word, meaning
+        SELECT rowid, word, meaning
         FROM words_fts
         WHERE word
             MATCH :query || '*'
@@ -23,9 +23,9 @@ interface WordDao {
     suspend fun search(query: String): List<Word>
 
     @Query("""
-        SELECT word, meaning FROM words_fts WHERE word MATCH :query
+        SELECT rowid, word, meaning FROM words_fts WHERE word MATCH :query
         UNION
-        SELECT word, meaning FROM words_fts WHERE meaning MATCH :query;
+        SELECT rowid, word, meaning FROM words_fts WHERE meaning MATCH :query;
     """)
     suspend fun complexSearch(query: String): List<Word>
 }
