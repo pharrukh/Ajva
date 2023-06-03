@@ -12,6 +12,7 @@ import com.michaeltroger.latintocyrillic.LatinCyrillicFactory
 import com.normuradov.ajva.DictionaryApplication
 import com.normuradov.ajva.data.Word
 import com.normuradov.ajva.data.WordRepository
+import com.normuradov.ajva.utils.transliterate
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -73,7 +74,7 @@ class SearchViewModel(
             val isCyrillic = latinCyrillic.isCyrillic(sanitizedText)
             Log.d(TAG, "isCyrillic: $isCyrillic")
             if (!isCyrillic) {
-                val cyrillic = latinCyrillic.latinToCyrillic(sanitizedText)
+                val cyrillic = transliterate(sanitizedText.lowercase())
                 transliteratedText = cyrillic
             }
             Log.d(TAG, "transliteratedText: $transliteratedText")

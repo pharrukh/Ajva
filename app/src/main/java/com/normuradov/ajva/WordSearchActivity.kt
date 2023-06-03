@@ -2,6 +2,7 @@ package com.normuradov.ajva
 
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -36,6 +37,10 @@ class WordSearchActivity : ComponentActivity() {
         setContent {
             var text = intent.getStringExtra("RECOGNIZED_TEXT")!!
             Log.d(TAG, "RECOGNIZED_TEXT $text")
+
+            // Display the result in a Toast
+            Toast.makeText(this, text, Toast.LENGTH_LONG).show()
+
             viewModel.showLoader()
             viewModel.process(text)
 
