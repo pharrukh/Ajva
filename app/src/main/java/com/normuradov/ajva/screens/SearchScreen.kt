@@ -38,6 +38,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.normuradov.ajva.data.Word
+import com.normuradov.ajva.extentions.trimToLengthWithEllipsis
 import com.normuradov.ajva.ui.theme.AjvaTheme
 import com.normuradov.ajva.ui.theme.SearchViewModel
 
@@ -122,15 +123,14 @@ fun WordCard(
             .padding(4.dp),
     ) {
         Row(
-            modifier = modifier
-                .fillMaxSize(),
+            modifier = modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 modifier = modifier
                     .fillMaxSize()
                     .padding(bottom = 2.dp, start = 8.dp),
-                text = word.word!!,
+                text = word.word!!.trimToLengthWithEllipsis(15),
                 style = MaterialTheme.typography.titleMedium,
             )
         }

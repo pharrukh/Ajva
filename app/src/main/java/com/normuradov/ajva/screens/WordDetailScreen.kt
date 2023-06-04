@@ -42,12 +42,12 @@ fun WordDetailScreen(
                     modifier = modifier
                         .padding(8.dp)
                         .align(alignment = androidx.compose.ui.Alignment.CenterVertically)
+                        .size(70.dp)
                 ) {
                     Icon(
                         painterResource(id = R.drawable.baseline_arrow_back_24),
                         contentDescription = "back",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = modifier.size(40.dp),
+                        modifier = modifier.size(70.dp),
                     )
                 }
                 Text(
@@ -74,7 +74,7 @@ fun WordDetailScreen(
 @Preview
 @Composable
 fun WordDetailScreenPreview() {
-    AjvaTheme {
+    AjvaTheme(useDarkTheme = true)  {
         WordDetailScreen(
             word = WORDS[2],
             onBackClick = {}

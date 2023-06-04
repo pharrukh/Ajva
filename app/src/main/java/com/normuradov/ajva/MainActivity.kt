@@ -142,12 +142,12 @@ class MainActivity : AppCompatActivity() {
                                         )
                                         intent.putExtra("RECOGNIZED_TEXT", visionText.text)
 
+                                        startActivity(intent)
+
                                         runOnUiThread {
                                             viewBinding.viewFinder.visibility = View.VISIBLE
                                             viewBinding.progressBar.visibility = View.GONE
                                         }
-
-                                        startActivity(intent)
                                     }
                                     .addOnFailureListener { e ->
                                         Log.v("ERROR", e.message.toString())

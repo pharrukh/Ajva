@@ -1,6 +1,7 @@
 package com.normuradov.ajva.ui.theme
 
 import android.util.Log
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
@@ -12,6 +13,8 @@ import com.michaeltroger.latintocyrillic.LatinCyrillicFactory
 import com.normuradov.ajva.DictionaryApplication
 import com.normuradov.ajva.data.Word
 import com.normuradov.ajva.data.WordRepository
+import com.normuradov.ajva.screens.ToastEvent
+import com.normuradov.ajva.utils.parseRecognizedText
 import com.normuradov.ajva.utils.transliterate
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +31,7 @@ class SearchViewModel(
     private val _rawUserInput = MutableSharedFlow<String>(replay = 0)
     private val _uiState = MutableStateFlow(SearchScreenUiState())
     val uiState: StateFlow<SearchScreenUiState> = _uiState
+    val toastEvent = MutableLiveData<ToastEvent>()
 
     init {
         viewModelScope.launch {
@@ -67,19 +71,21 @@ class SearchViewModel(
 
 
     fun process(text: String) {
-        // Remove all non alphanumeric characters from Latin and Cyrillic
-        val sanitizedText = text.replace("[^A-Za-zА-Яа-я0-9 ]".toRegex(), "")
+        var transliteratedText = text
         viewModelScope.launch {
-            var transliteratedText = sanitizedText
             val latinCyrillic = LatinCyrillicFactory.create(Alphabet.RussianIso9)
-            val isCyrillic = latinCyrillic.isCyrillic(sanitizedText)
+            val isCyrillic = latinCyrillic.isCyrillic(text)
             Log.v(TAG, "isCyrillic: $isCyrillic")
             if (!isCyrillic) {
-                val cyrillic = transliterate(sanitizedText.lowercase())
+                val cyrillic = transliterate(text.lowercase())
+                toastEvent.value = ToastEvent("transliterated $cyrillic", 2000)
                 transliteratedText = cyrillic
             }
+
             Log.v(TAG, "transliteratedText: $transliteratedText")
-            val words = split(transliteratedText)
+            val words = parseRecognizedText(transliteratedText)
+            toastEvent.value = ToastEvent("parsed words $words", 2000)
+
             Log.v(TAG, "words: $words")
             searchForWordsByOCR(words)
         }
