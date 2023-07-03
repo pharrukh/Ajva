@@ -25,6 +25,7 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
@@ -43,6 +44,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
     private var imageCapture: ImageCapture? = null
     private var analyzeNextImage = false
+    private val executor = Executors.newSingleThreadExecutor()
 
     private val activityResultLauncher =
         registerForActivityResult(
@@ -69,10 +71,12 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var cameraExecutor: ExecutorService
 
+    @kotlin.OptIn(ExperimentalAnimationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         viewBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
+        supportActionBar?.hide()
 
         // Request camera permissions
         if (allPermissionsGranted()) {
@@ -83,9 +87,9 @@ class MainActivity : AppCompatActivity() {
 
         // Set up the listeners for take photo and video capture buttons
         viewBinding.searchButton.setOnClickListener {
+            analyzeNextImage = true
             viewBinding.progressBar.visibility = View.VISIBLE
             viewBinding.viewFinder.visibility = View.INVISIBLE  // Hide the preview
-            analyzeNextImage = true
 //            val buffer = image.planes[0].buffer
 //            val data = buffer.toByteArray()
 //            val pixels = data.map { it.toInt() and 0xFF }
@@ -97,92 +101,102 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
-        cameraProviderFuture.addListener({
-            // Used to bind the lifecycle of cameras to the lifecycle owner
-            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
-            // Preview
-            val preview = Preview.Builder()
-                .build()
-                .also {
-                    it.setSurfaceProvider(viewBinding.viewFinder.surfaceProvider)
-                }
+        executor.execute {
+            val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
-            imageCapture = ImageCapture.Builder()
-                .build()
+            cameraProviderFuture.addListener({
+                // Used to bind the lifecycle of cameras to the lifecycle owner
+                val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
-            val imageAnalyzer = ImageAnalysis.Builder()
-                .build()
-                .also {
-                    it.setAnalyzer(cameraExecutor, ImageAnalysis.Analyzer { imageProxy ->
-                        if (analyzeNextImage) {
-                            analyzeNextImage = false  // Reset the flag
-                            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
-                            val bitmap = imageProxy.toBitmap(rotationDegrees)
-                            imageProxy.close()  // Don't forget to close the image!
+                // Preview
+                val preview = Preview.Builder()
+                    .build()
+                    .also {
+                        it.setSurfaceProvider(viewBinding.viewFinder.surfaceProvider)
+                    }
 
-                            val scaleFactor = 0.5f
-                            val newWidth = (bitmap.width * scaleFactor).toInt()
-                            val newHeight = (bitmap.height * scaleFactor).toInt()
-                            val resizedBitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, false)
+                imageCapture = ImageCapture.Builder()
+                    .build()
 
-                            val recognizer =
-                                TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                            val inputImage = InputImage.fromBitmap(resizedBitmap, rotationDegrees)
+                val imageAnalyzer = ImageAnalysis.Builder()
+                    .build()
+                    .also {
+                        it.setAnalyzer(cameraExecutor, ImageAnalysis.Analyzer { imageProxy ->
+                            if (analyzeNextImage) {
+                                analyzeNextImage = false  // Reset the flag
+                                val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+                                val bitmap = imageProxy.toBitmap(rotationDegrees)
+                                imageProxy.close()  // Don't forget to close the image!
 
-                            try {
-                                recognizer.process(inputImage)
-                                    .addOnSuccessListener { visionText ->
-                                        Log.v("SUCCESS", visionText.text)
-                                        val intent = Intent(
-                                            this@MainActivity,
-                                            WordSearchActivity::class.java
-                                        )
-                                        intent.putExtra("RECOGNIZED_TEXT", visionText.text)
+                                val scaleFactor = 0.5f
+                                val newWidth = (bitmap.width * scaleFactor).toInt()
+                                val newHeight = (bitmap.height * scaleFactor).toInt()
+                                val resizedBitmap =
+                                    Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, false)
 
-                                        startActivity(intent)
+                                val recognizer =
+                                    TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                                val inputImage =
+                                    InputImage.fromBitmap(resizedBitmap, rotationDegrees)
 
-                                        runOnUiThread {
-                                            viewBinding.viewFinder.visibility = View.VISIBLE
-                                            viewBinding.progressBar.visibility = View.GONE
+                                try {
+                                    recognizer.process(inputImage)
+                                        .addOnSuccessListener { visionText ->
+                                            Log.v("SUCCESS", visionText.text)
+                                            val intent = Intent(
+                                                this@MainActivity,
+                                                WordSearchActivity::class.java
+                                            )
+                                            intent.putExtra("RECOGNIZED_TEXT", visionText.text)
+
+                                            startActivity(intent)
+
+                                            runOnUiThread {
+                                                viewBinding.viewFinder.visibility = View.VISIBLE
+                                                viewBinding.progressBar.visibility = View.GONE
+                                            }
                                         }
-                                    }
-                                    .addOnFailureListener { e ->
-                                        Log.v("ERROR", e.message.toString())
-                                    }
+                                        .addOnFailureListener { e ->
+                                            Log.v("ERROR", e.message.toString())
+                                        }
 
-                            } catch (e: IOException) {
-                                e.printStackTrace()
+                                } catch (e: IOException) {
+                                    e.printStackTrace()
+                                }
+
+                            } else {
+                                // Skip this image without analyzing it
+                                imageProxy.close()
                             }
 
-                        } else {
-                            // Skip this image without analyzing it
-                            imageProxy.close()
-                        }
+                        })
+                    }
 
-                    })
+
+                // Select back camera as a default
+                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+                try {
+                    // Unbind use cases before rebinding
+                    cameraProvider.unbindAll()
+
+                    // Bind use cases to camera
+                    cameraProvider.bindToLifecycle(
+                        this, cameraSelector, preview, imageAnalyzer
+                    )
+
+                } catch (exc: Exception) {
+                    Log.e(TAG, "Use case binding failed", exc)
                 }
 
+            }, ContextCompat.getMainExecutor(this))
 
-            // Select back camera as a default
-            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
-            try {
-                // Unbind use cases before rebinding
-                cameraProvider.unbindAll()
+        }
 
-                // Bind use cases to camera
-                cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview, imageAnalyzer
-                )
 
-            } catch (exc: Exception) {
-                Log.e(TAG, "Use case binding failed", exc)
-            }
-
-        }, ContextCompat.getMainExecutor(this))
     }
 
 
@@ -199,6 +213,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
+        executor.shutdown()
     }
 
     companion object {

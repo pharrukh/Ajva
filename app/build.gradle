@@ -104,4 +104,6 @@ dependencies {
 
     // To use Standard variant:
     implementation 'cz.adaptech.tesseract4android:tesseract4android:4.4.0'
+
+    implementation 'androidx.compose.foundation:foundation:1.4.3'
 }
