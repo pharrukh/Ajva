@@ -14,6 +14,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -36,7 +37,7 @@ fun WordDetailScreen(
             .padding(4.dp)
     ) {
         Column {
-            Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(
                     onClick = onBackClick,
                     modifier = modifier
@@ -74,9 +75,9 @@ fun WordDetailScreen(
 @Preview
 @Composable
 fun WordDetailScreenPreview() {
-    AjvaTheme(useDarkTheme = true)  {
+    AjvaTheme(useDarkTheme = true) {
         WordDetailScreen(
-            word = WORDS[2],
+            word = WORDS[0],
             onBackClick = {}
         )
     }

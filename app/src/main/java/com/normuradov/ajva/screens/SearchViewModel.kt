@@ -1,7 +1,6 @@
 package com.normuradov.ajva.ui.theme
 
 import android.util.Log
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
@@ -13,7 +12,6 @@ import com.michaeltroger.latintocyrillic.LatinCyrillicFactory
 import com.normuradov.ajva.DictionaryApplication
 import com.normuradov.ajva.data.Word
 import com.normuradov.ajva.data.WordRepository
-import com.normuradov.ajva.screens.ToastEvent
 import com.normuradov.ajva.utils.parseRecognizedText
 import com.normuradov.ajva.utils.transliterate
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -31,7 +29,6 @@ class SearchViewModel(
     private val _rawUserInput = MutableSharedFlow<String>(replay = 0)
     private val _uiState = MutableStateFlow(SearchScreenUiState())
     val uiState: StateFlow<SearchScreenUiState> = _uiState
-    val toastEvent = MutableLiveData<ToastEvent>()
 
     init {
         viewModelScope.launch {
@@ -57,12 +54,17 @@ class SearchViewModel(
     }
 
     fun searchForWordsByOCR(recognizedPossibleWords: List<String>) {
-        val topFive = recognizedPossibleWords
         viewModelScope.launch {
             val result = mutableSetOf<Word>()
-            for (recognizedWord in topFive) {
-                val words = wordRepository.search(recognizedWord)
-                if(words.isNotEmpty())
+            for (recognizedWord in recognizedPossibleWords) {
+                Log.v(TAG, "recognizedWord: $recognizedWord")
+                val possibleMatches = wordRepository.search(recognizedWord)
+                if (possibleMatches.isEmpty()) continue
+                val word = possibleMatches[0]
+                Log.v(TAG, "word: ${word.meaning}")
+                val words = wordRepository.fullTextSearch(word.word!!)
+                Log.v(TAG, "full text search: ${words.joinToString { it.word!! }}")
+                if (words.isNotEmpty())
                     result.add(words[0])
             }
             _uiState.update { _uiState.value.copy(foundWords = result.toList(), isLoading = false) }
@@ -78,13 +80,11 @@ class SearchViewModel(
             Log.v(TAG, "isCyrillic: $isCyrillic")
             if (!isCyrillic) {
                 val cyrillic = transliterate(text.lowercase())
-                toastEvent.value = ToastEvent("transliterated $cyrillic", 2000)
                 transliteratedText = cyrillic
             }
 
             Log.v(TAG, "transliteratedText: $transliteratedText")
             val words = parseRecognizedText(transliteratedText)
-            toastEvent.value = ToastEvent("parsed words $words", 2000)
 
             Log.v(TAG, "words: $words")
             searchForWordsByOCR(words)
@@ -108,7 +108,7 @@ class SearchViewModel(
             Log.v("SEARCH", query)
             // Sanitize query by keeing only Cyrrilic letters
             val sanitizedQuery = query.replace(Regex("[^а-яА-Я]"), "")
-            val words = wordRepository.search(sanitizedQuery)
+            val words = wordRepository.fullTextSearch(sanitizedQuery)
             Log.v("SEARCH", "found ${words.size} words")
             _uiState.update { _uiState.value.copy(foundWords = words) }
             Log.v("STATE_UPDATE", "Now there are ${_uiState.value.foundWords.size} words")

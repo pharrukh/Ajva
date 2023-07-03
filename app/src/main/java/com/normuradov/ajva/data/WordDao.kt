@@ -19,12 +19,8 @@ interface WordDao {
                 ELSE 1
             END
         LIMIT 200""")
-    suspend fun search(query: String): List<Word>
+    suspend fun fullTextSearch(query: String): List<Word>
 
-    @Query("""
-        SELECT rowid, word, meaning FROM words_fts WHERE word MATCH :query
-        UNION
-        SELECT rowid, word, meaning FROM words_fts WHERE meaning MATCH :query;
-    """)
-    suspend fun complexSearch(query: String): List<Word>
+    @Query("SELECT * FROM words WHERE word LIKE :word || '%' LIMIT 1")
+    suspend fun search(word: String): List<ExactWord>
 }

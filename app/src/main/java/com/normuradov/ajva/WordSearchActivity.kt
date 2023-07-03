@@ -35,11 +35,11 @@ class WordSearchActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            viewModel.toastEvent.observe(this) { toastEvent ->
-                toastEvent?.let { toast ->
-                    Toast.makeText(this.baseContext, toast.message, toast.duration).show()
-                }
-            }
+//            viewModel.toastEvent.observe(this) { toastEvent ->
+//                toastEvent?.let { toast ->
+//                    Toast.makeText(this.baseContext, toast.message, toast.duration).show()
+//                }
+//            }
 
             var text = intent.getStringExtra("RECOGNIZED_TEXT")!!
             Log.v(TAG, "RECOGNIZED_TEXT $text")
