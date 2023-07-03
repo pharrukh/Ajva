@@ -1,10 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
+    <color name="md_theme_light_primary">#FF785900</color>
+    <color name="md_theme_light_onPrimary">#FFFFFFFF</color>
+    <color name="md_theme_light_primaryContainer">#FFFFDF9E</color>
+    <color name="md_theme_light_onPrimaryContainer">#FF261A00</color>
+    <color name="md_theme_light_secondary">#FF0060A8</color>
+    <color name="md_theme_light_onSecondary">#FFFFFFFF</color>
+    <color name="md_theme_light_secondaryContainer">#FFD3E4FF</color>
+    <color name="md_theme_light_onSecondaryContainer">#FF001C38</color>
+    <color name="md_theme_light_tertiary">#FF875200</color>
+    <color name="md_theme_light_onTertiary">#FFFFFFFF</color>
+    <color name="md_theme_light_tertiaryContainer">#FFFFDDBA</color>
+    <color name="md_theme_light_onTertiaryContainer">#FF2B1700</color>
+    <color name="md_theme_light_error">#FFBA1A1A</color>
+    <color name="md_theme_light_errorContainer">#FFFFDAD6</color>
+    <color name="md_theme_light_onError">#FFFFFFFF</color>
+    <color name="md_theme_light_onErrorContainer">#FF410002</color>
+    <color name="md_theme_light_background">#FFF8FDFF</color>
+    <color name="md_theme_light_onBackground">#FF001F25</color>
+    <color name="md_theme_light_surface">#FFF8FDFF</color>
+    <color name="md_theme_light_onSurface">#FF001F25</color>
+    <color name="md_theme_light_surfaceVariant">#FFEDE1CF</color>
+    <color name="md_theme_light_onSurfaceVariant">#FF4D4639</color>
+    <color name="md_theme_light_outline">#FF7F7667</color>
+    <color name="md_theme_light_inverseOnSurface">#FFD6F6FF</color>
+    <color name="md_theme_light_inverseSurface">#FF00363F</color>
+    <color name="md_theme_light_inversePrimary">#FFFABD00</color>
+    <color name="md_theme_light_shadow">#FF000000</color>
+    <color name="md_theme_light_surfaceTint">#FF785900</color>
+    <color name="md_theme_light_outlineVariant">#FFD0C5B4</color>
+    <color name="md_theme_light_scrim">#FF000000</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>
