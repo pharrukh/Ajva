@@ -7,21 +7,15 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.AP
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.michaeltroger.latintocyrillic.Alphabet
-import com.michaeltroger.latintocyrillic.LatinCyrillicFactory
 import com.normuradov.ajva.DictionaryApplication
 import com.normuradov.ajva.data.Word
 import com.normuradov.ajva.data.WordRepository
-import com.normuradov.ajva.utils.parseRecognizedText
-import com.normuradov.ajva.utils.transliterate
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-private val TAG = "SEARCH_VIEW_MODEL"
 
 class SearchViewModel(
     private val wordRepository: WordRepository,
@@ -49,52 +43,8 @@ class SearchViewModel(
         }
     }
 
-    fun showLoader() {
-        _uiState.update { _uiState.value.copy(isLoading = true) }
-    }
-
-    fun searchForWordsByOCR(recognizedPossibleWords: List<String>) {
-        viewModelScope.launch {
-            val result = mutableSetOf<Word>()
-            for (recognizedWord in recognizedPossibleWords) {
-                Log.v(TAG, "recognizedWord: $recognizedWord")
-                val possibleMatches = wordRepository.search(recognizedWord)
-                if (possibleMatches.isEmpty()) continue
-                val word = possibleMatches[0]
-                Log.v(TAG, "word: ${word.meaning}")
-                val words = wordRepository.fullTextSearch(word.word!!)
-                Log.v(TAG, "full text search: ${words.joinToString { it.word!! }}")
-                if (words.isNotEmpty())
-                    result.add(words[0])
-            }
-            _uiState.update { _uiState.value.copy(foundWords = result.toList(), isLoading = false) }
-        }
-    }
-
-
-    fun process(text: String) {
-        var transliteratedText = text
-        viewModelScope.launch {
-            val latinCyrillic = LatinCyrillicFactory.create(Alphabet.RussianIso9)
-            val isCyrillic = latinCyrillic.isCyrillic(text)
-            Log.v(TAG, "isCyrillic: $isCyrillic")
-            if (!isCyrillic) {
-                val cyrillic = transliterate(text.lowercase())
-                transliteratedText = cyrillic
-            }
-
-            Log.v(TAG, "transliteratedText: $transliteratedText")
-            val words = parseRecognizedText(transliteratedText)
-
-            Log.v(TAG, "words: $words")
-            searchForWordsByOCR(words)
-        }
-    }
-
-    private fun split(text: String): List<String> {
-        val words = text.replace("\n", " ").split(" ").filter { it -> it.length > 4 }
-        Log.v(TAG, words.joinToString { "$it, " })
-        return words
+    fun setWords(words: List<Word>) {
+        _uiState.update { _uiState.value.copy(foundWords = words) }
     }
 
     fun searchForWordsByUserInput() {
@@ -136,6 +86,8 @@ class SearchViewModel(
 enum class SearchViewMode {
     Search, Detail
 }
+
+
 
 data class SearchScreenUiState(
     val mode: SearchViewMode = SearchViewMode.Search,

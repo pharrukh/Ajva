@@ -27,25 +27,25 @@ fun OnboardingPage(page: Page) {
         verticalArrangement = Arrangement.Center,
         modifier = Modifier.fillMaxSize()
     ) {
-    Image(
-        painter = painterResource(page.image),
-        contentDescription = null,
-        modifier = Modifier.size(200.dp)
-    )
-    Spacer(modifier = Modifier.height(20.dp))
+        Image(
+            painter = painterResource(page.image),
+            contentDescription = null,
+            modifier = Modifier.size(200.dp)
+        )
+        Spacer(modifier = Modifier.height(20.dp))
 
-    Text(
-        text = page.title,
-        fontSize = 28.sp, fontWeight = FontWeight.Bold
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-    Text(
-        text = page.description,
-        textAlign = TextAlign.Center, fontSize = 14.sp
-    )
-    Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = page.title,
+            fontSize = 28.sp, fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = page.description,
+            textAlign = TextAlign.Center, fontSize = 14.sp
+        )
+        Spacer(modifier = Modifier.height(12.dp))
 
-}
+    }
 }
 
 @Preview

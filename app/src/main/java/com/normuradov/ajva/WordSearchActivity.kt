@@ -2,8 +2,6 @@ package com.normuradov.ajva
 
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -41,27 +39,17 @@ class WordSearchActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val application = this.application as DictionaryApplication
+        viewModel.setWords(application.sharedFoundWords)
+
         setContent {
-//            viewModel.toastEvent.observe(this) { toastEvent ->
-//                toastEvent?.let { toast ->
-//                    Toast.makeText(this.baseContext, toast.message, toast.duration).show()
-//                }
-//            }
-
-            var text = intent.getStringExtra("RECOGNIZED_TEXT")!!
-            Log.v(TAG, "RECOGNIZED_TEXT $text")
-
-            // Display the result in a Toast
-            Toast.makeText(this, text, Toast.LENGTH_LONG).show()
-
-            viewModel.showLoader()
-            viewModel.process(text)
-
             Surface(
                 modifier = Modifier
                     .fillMaxSize(),
                 color = MaterialTheme.colorScheme.background,
             ) {
+
                 AjvaTheme {
                     DictionaryApp(
                         viewModel = viewModel,
@@ -84,6 +72,7 @@ fun DictionaryApp(
     viewModel: SearchViewModel = viewModel(),
     onCameraFABClick: () -> Unit = {},
 ) {
+
     val uiState by viewModel.uiState.collectAsState()
     Scaffold(
         floatingActionButton = {
@@ -103,6 +92,8 @@ fun DictionaryApp(
             exit = fadeOut(),
         ) {
             if (uiState.mode == SearchViewMode.Search) {
+
+
                 SearchScreen(modifier = Modifier.padding(contentPadding))
             }
         }
